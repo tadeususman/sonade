@@ -103,19 +103,35 @@
       master = audio.createGain();
       master.gain.value = 0.16;
       master.connect(audio.destination);
+
+      // Gema halus: impuls dari noise yang meluruh, dicampur dengan suara asli.
+      const reverb = audio.createConvolver();
+      const len = audio.sampleRate * 2.6;
+      const impulse = audio.createBuffer(2, len, audio.sampleRate);
+      for (let ch = 0; ch < 2; ch++) {
+        const data = impulse.getChannelData(ch);
+        for (let n = 0; n < len; n++) data[n] = (Math.random() * 2 - 1) * Math.pow(1 - n / len, 3);
+      }
+      reverb.buffer = impulse;
+      const wet = audio.createGain();
+      wet.gain.value = 0.35;
+      master.connect(reverb).connect(wet).connect(audio.destination);
     }
     if (audio.state === "suspended") audio.resume();
     return true;
   }
 
+  const midi = (m) => 440 * Math.pow(2, (m - 69) / 12);
+  const cents = (freq, c) => freq * Math.pow(2, c / 1200);
+
   // Nada lembut seperti bel: sinus dengan sedikit overtone dan peluruhan.
-  function tone(freq, { at = 0, dur = 1.6, gain = 1 } = {}) {
+  function tone(freq, { at = 0, dur = 1.6, gain = 1, out = master } = {}) {
     const t0 = audio.currentTime + at;
     const env = audio.createGain();
     env.gain.setValueAtTime(0, t0);
     env.gain.linearRampToValueAtTime(gain, t0 + 0.015);
     env.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
-    env.connect(master);
+    env.connect(out);
     [[1, 1], [2, 0.22], [3, 0.06]].forEach(([mult, g]) => {
       const osc = audio.createOscillator();
       const og = audio.createGain();
@@ -127,14 +143,99 @@
     });
   }
 
-  const cents = (freq, c) => freq * Math.pow(2, c / 1200);
+  // Pad hangat: dua sinus yang sedikit berbeda nada, masuk dan keluar perlahan.
+  function pad(notes, { at = 0, dur = 1.4, gain = 0.1, out = master } = {}) {
+    const t0 = audio.currentTime + at;
+    notes.forEach((m) => {
+      const env = audio.createGain();
+      env.gain.setValueAtTime(0, t0);
+      env.gain.linearRampToValueAtTime(gain, t0 + 0.35);
+      env.gain.setValueAtTime(gain, t0 + dur);
+      env.gain.linearRampToValueAtTime(0, t0 + dur + 0.6);
+      env.connect(out);
+      [-5, 5].forEach((c) => {
+        const osc = audio.createOscillator();
+        osc.frequency.value = cents(midi(m), c);
+        osc.connect(env);
+        osc.start(t0);
+        osc.stop(t0 + dur + 0.7);
+      });
+    });
+  }
+
+  // Musik "selaras": progresi C → Am → F → G yang berputar terus selama ketiga nada
+  // menyala. Tiap birama dijadwalkan sedikit lebih awal, dan melodinya dipilih acak
+  // dari pentatonik C supaya selalu harmonis tapi tidak terdengar berulang.
+  const BAR = 3.6;
+  const PROGRESSION = [
+    [48, 55, 64, 71, 74], // Cmaj9
+    [45, 52, 60, 67, 71], // Am9
+    [41, 48, 57, 64, 67], // Fmaj9
+    [43, 50, 59, 64, 69], // G6/9
+  ];
+  const MELODY = [72, 74, 76, 79, 81, 84];
+  let music = null;
+
+  function scheduleBar(n, when) {
+    const at = when - audio.currentTime;
+    const out = music.bus;
+    pad(PROGRESSION[n % PROGRESSION.length], { at, dur: BAR - 0.2, gain: 0.07, out });
+    if (n === 0) {
+      // Birama pertama: denting naik sebagai tanda "sudah selaras".
+      [72, 76, 79, 83, 84].forEach((m, k) =>
+        tone(midi(m), { at: at + k * 0.13, dur: 2.6, gain: 0.4 - k * 0.05, out })
+      );
+      return;
+    }
+    const slots = [0, 1, 2, 3, 4, 5, 6, 7].sort(() => Math.random() - 0.5).slice(0, 3 + Math.floor(Math.random() * 2));
+    slots.forEach((slot) => {
+      const m = MELODY[Math.floor(Math.random() * MELODY.length)];
+      tone(midi(m), { at: at + slot * (BAR / 8), dur: 2.4, gain: 0.22 + Math.random() * 0.12, out });
+    });
+  }
+
+  function tick() {
+    if (!music) return;
+    while (music.next < audio.currentTime + 1.5) {
+      scheduleBar(music.bar, music.next);
+      music.next += BAR;
+      music.bar++;
+    }
+    music.timer = setTimeout(tick, 400);
+  }
+
+  function startMusic() {
+    if (music) return;
+    const bus = audio.createGain();
+    bus.connect(master);
+    music = { bus, bar: 0, next: audio.currentTime + 0.05, timer: 0 };
+    tick();
+  }
+
+  function stopMusic() {
+    if (!music) return;
+    const { bus, timer } = music;
+    music = null;
+    clearTimeout(timer);
+    bus.gain.setValueAtTime(bus.gain.value, audio.currentTime);
+    bus.gain.linearRampToValueAtTime(0, audio.currentTime + 1.2);
+    setTimeout(() => bus.disconnect(), 1400);
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (!audio) return;
+    if (document.hidden) audio.suspend();
+    else if (music) audio.resume();
+  });
 
   function sound(i, on) {
     if (muted || !ensureAudio()) return;
     if (strands.every((s) => s.on)) {
-      NOTES.forEach((f, k) => tone(f, { at: k * 0.08, dur: 2.8, gain: 0.7 }));
-      tone(NOTES[0] * 2, { at: 0.24, dur: 3.2, gain: 0.45 });
-    } else if (on) {
+      startMusic();
+      return;
+    }
+    stopMusic();
+    if (on) {
       tone(NOTES[i], { dur: 1.4 });
     } else {
       // Dimatikan: dua nada yang sedikit meleset, terdengar fals.
@@ -146,6 +247,8 @@
   muteBtn.addEventListener("click", () => {
     muted = !muted;
     muteBtn.setAttribute("aria-pressed", String(!muted));
+    if (muted && audio) stopMusic();
+    if (!muted && strands.every((s) => s.on) && ensureAudio()) startMusic();
     try { localStorage.setItem("sonade-muted", muted ? "1" : "0"); } catch {}
   });
 
