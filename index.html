@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sonade · Build in harmony</title>
+  <meta name="description" content="Sonade membantu kamu membuat website, aplikasi, dan sistem ERP yang nyaman dipakai dan dibangun dengan rapi.">
+  <meta name="theme-color" content="#2E2A6B">
+  <link rel="icon" type="image/png" href="assets/sonade-play-console-512.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header class="nav">
+    <a href="#" class="nav__logo" aria-label="Sonade, ke atas">
+      <img src="assets/sonade-logo-putih.svg" alt="sonade" width="120" height="30">
+    </a>
+    <nav class="nav__links" aria-label="Utama">
+      <a href="#filosofi">Filosofi</a>
+      <a href="#layanan">Layanan</a>
+      <a href="#karya">Karya</a>
+      <a href="#proses">Proses</a>
+      <a href="#kontak" class="nav__cta">Kontak</a>
+    </nav>
+  </header>
+
+  <!-- Hero: tiga nada yang menyelaras -->
+  <section class="hero">
+    <div class="hero__text">
+      <p class="eyebrow">Software house</p>
+      <h1 lang="en">Build in <span class="peach">harmony.</span></h1>
+      <p class="hero__sub">
+        Kami membantu kamu membuat website, aplikasi, dan sistem ERP
+        yang nyaman dipakai dan dibangun dengan rapi.
+        Selaras dan seimbang di setiap sisinya.
+      </p>
+    </div>
+
+    <div class="wave" aria-hidden="true">
+      <canvas id="wave"></canvas>
+    </div>
+
+    <div class="tuner">
+      <p class="tuner__hint">Coba klik ketiganya:</p>
+      <div class="tuner__keys" role="group" aria-label="Tiga nada Sonade">
+        <button class="key" data-strand="0" aria-pressed="false"><span class="key__dot"></span>Rasa</button>
+        <button class="key" data-strand="1" aria-pressed="false"><span class="key__dot"></span>Fungsi</button>
+        <button class="key" data-strand="2" aria-pressed="false"><span class="key__dot"></span>Struktur</button>
+      </div>
+      <p class="tuner__status" id="status" aria-live="polite">Masih fals…</p>
+    </div>
+
+    <div class="hero__actions">
+      <a href="#kontak" class="btn btn--peach">Ceritakan idemu</a>
+      <a href="#layanan" class="btn btn--ghost">Lihat layanan</a>
+    </div>
+  </section>
+
+  <!-- Filosofi -->
+  <section class="section section--cream" id="filosofi">
+    <div class="container philosophy">
+      <div class="philosophy__intro">
+        <p class="eyebrow eyebrow--indigo">Kenapa namanya Sonade?</p>
+        <h2>Diambil dari <em>sonar</em>, nada yang harmonis.</h2>
+        <p>
+          Kami percaya aplikasi yang baik itu seperti musik. Tampilan, fitur,
+          dan kode di baliknya perlu saling mendukung. Kalau salah satunya
+          fals, hasilnya pun terasa kurang enak.
+        </p>
+        <figure class="note-reveal">
+          <img src="assets/sonade-d-peach.svg" alt="Huruf d dari logo Sonade" width="72" height="100">
+          <figcaption>Coba lihat huruf <strong>d</strong> di logo kami. Mirip not balok, kan? ♪</figcaption>
+        </figure>
+      </div>
+
+      <ol class="pillars">
+        <li class="pillar">
+          <span class="pillar__num">01</span>
+          <h3>Rasa <small>UX/UI</small></h3>
+          <p>Enak dilihat dan mudah dipakai, sehingga pengguna baru pun cepat paham.</p>
+        </li>
+        <li class="pillar">
+          <span class="pillar__num">02</span>
+          <h3>Fungsi <small>Fitur</small></h3>
+          <p>Fiturnya sesuai kebutuhanmu. Tidak perlu banyak, yang penting benar-benar terpakai.</p>
+        </li>
+        <li class="pillar">
+          <span class="pillar__num">03</span>
+          <h3>Struktur <small>Arsitektur</small></h3>
+          <p>Kodenya rapi dan aman, jadi mudah dikembangkan saat usahamu tumbuh.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Layanan -->
+  <section class="section" id="layanan">
+    <div class="container">
+      <p class="eyebrow eyebrow--indigo">Layanan</p>
+      <h2>Apa yang bisa kami bantu?</h2>
+
+      <div class="services">
+        <article class="service">
+          <div class="eq" aria-hidden="true"><i style="--h:.45"></i><i style="--h:.8"></i><i style="--h:.6"></i></div>
+          <h3>Website</h3>
+          <p>Mulai dari web profil, toko online, sampai web app. Cepat diakses dan tetap rapi di HP.</p>
+        </article>
+        <article class="service">
+          <div class="eq" aria-hidden="true"><i style="--h:.7"></i><i style="--h:.4"></i><i style="--h:.9"></i></div>
+          <h3>Aplikasi Mobile</h3>
+          <p>Aplikasi Android dan iOS yang nyaman dipakai, sampai siap terbit di Play Store dan App Store.</p>
+        </article>
+        <article class="service">
+          <div class="eq" aria-hidden="true"><i style="--h:.9"></i><i style="--h:.65"></i><i style="--h:.5"></i></div>
+          <h3>Sistem ERP</h3>
+          <p>Stok, penjualan, keuangan, dan tim dalam satu sistem yang disesuaikan dengan cara kerjamu.</p>
+        </article>
+        <article class="service">
+          <div class="eq" aria-hidden="true"><i style="--h:.5"></i><i style="--h:.9"></i><i style="--h:.7"></i></div>
+          <h3>Konsultasi</h3>
+          <p>Masih bingung mulai dari mana? Ngobrol dulu saja. Kami bantu cari solusi yang paling pas, dengan bahasa yang mudah dipahami.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Karya -->
+  <section class="section section--cream" id="karya">
+    <div class="container">
+      <p class="eyebrow eyebrow--indigo">Karya</p>
+      <h2>Beberapa yang sudah kami buat.</h2>
+
+      <div class="works">
+        <article class="work">
+          <div class="work__media">
+            <img src="assets/karya/selah.png" alt="Tampilan aplikasi selah, berisi daftar renungan harian" width="1024" height="500" loading="lazy">
+          </div>
+          <div class="work__body">
+            <p class="work__tags">Aplikasi Android</p>
+            <h3>selah,</h3>
+            <p>
+              Jurnal renungan harian bersama Teman Selah, teman refleksi yang
+              membantu menggali makna ayat. Dilengkapi rencana bacaan, jurnal iman,
+              dan kartu ayat yang bisa dibagikan ke story.
+            </p>
+            <a class="work__link" href="https://selah.my.id" target="_blank" rel="noopener">Kunjungi selah.my.id <span aria-hidden="true">↗</span></a>
+          </div>
+        </article>
+
+        <article class="work">
+          <div class="work__media work__media--todo">
+            <img class="todo-mark" src="assets/karya/todo-wordmark.svg" alt="todo" width="180" height="59" loading="lazy">
+            <ul class="todo-mock" aria-hidden="true">
+              <li class="is-done"><i></i>Rapat mingguan</li>
+              <li><i></i>Kirim desain ke klien <b>Hari ini</b></li>
+              <li><i></i>Perbarui dokumentasi</li>
+            </ul>
+          </div>
+          <div class="work__body">
+            <p class="work__tags">Aplikasi Web · AI</p>
+            <h3>todo.</h3>
+            <p>
+              Pengelola tugas pribadi dengan proyek, sub-task, dan pengingat deadline
+              lewat notifikasi. Bisa dipasang di HP seperti aplikasi, dan asisten AI-nya
+              bisa diajak mengobrol untuk membantu mengatur tugas.
+            </p>
+          </div>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <!-- Proses: not di atas paranada -->
+  <section class="section section--indigo" id="proses">
+    <div class="container">
+      <p class="eyebrow">Proses</p>
+      <h2>Begini cara kami bekerja.</h2>
+
+      <ol class="staff">
+        <li class="step" style="--lift:0">
+          <span class="note" aria-hidden="true"></span>
+          <h3>Dengar</h3>
+          <p>Kamu bercerita, kami mendengarkan: apa masalahnya dan apa yang ingin dicapai.</p>
+        </li>
+        <li class="step" style="--lift:1">
+          <span class="note" aria-hidden="true"></span>
+          <h3>Rancang</h3>
+          <p>Alur, tampilan, dan fondasinya kami susun dulu sebelum mulai menulis kode.</p>
+        </li>
+        <li class="step" style="--lift:2">
+          <span class="note" aria-hidden="true"></span>
+          <h3>Bangun</h3>
+          <p>Kami kerjakan sampai siap dipakai, dan kamu bisa memantau progresnya kapan saja.</p>
+        </li>
+        <li class="step" style="--lift:3">
+          <span class="note" aria-hidden="true"></span>
+          <h3>Rawat</h3>
+          <p>Setelah rilis, kami tetap mendampingi untuk merawat dan mengembangkannya.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Kontak -->
+  <section class="section section--peach" id="kontak">
+    <div class="container contact">
+      <h2>Punya ide yang ingin diwujudkan?</h2>
+      <p>Ceritakan saja dulu. Belum jelas bentuknya juga tidak apa-apa.</p>
+      <a class="sonar" href="mailto:sonade.studio@gmail.com?subject=Halo%20Sonade">
+        <span class="sonar__ring" aria-hidden="true"></span>
+        <span class="sonar__ring" aria-hidden="true"></span>
+        <span class="sonar__label">Kirim email</span>
+      </a>
+      <p class="contact__email">sonade.studio@gmail.com</p>
+    </div>
+  </section>
+
+  <footer class="footer">
+    <div class="footer__brand">
+      <img src="assets/sonade-logo-peach.svg" alt="sonade" width="96" height="24">
+      <span>Build in harmony.</span>
+    </div>
+    <p>© 2026 Sonade</p>
+  </footer>
+
+  <script src="script.js"></script>
+</body>
+</html>
