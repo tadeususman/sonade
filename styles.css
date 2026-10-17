@@ -37,6 +37,16 @@ img { display: block; max-width: 100%; height: auto; }
 
 .peach { color: var(--peach); }
 
+/* Titik bulat pengganti titik huruf yang berbentuk kotak */
+.dot {
+  display: inline-block;
+  width: .16em;
+  height: .16em;
+  margin-left: .04em;
+  border-radius: 50%;
+  background: currentColor;
+}
+
 .eyebrow {
   margin-bottom: 14px;
   font-size: 13px;
