@@ -40,10 +40,34 @@
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   }
 
+  // Seberapa keras suara yang sedang terdengar (0..1). Gelombang ikut membesar
+  // dan berjalan lebih cepat saat ada bunyi, lalu tenang lagi saat hening.
+  let analyser = null;
+  let samples = null;
+  let level = 0;
+  let peak = 0.02;
+  let travel = 0;
+  let lastT = 0;
+
+  function readLevel() {
+    let target = 0;
+    if (analyser) {
+      analyser.getFloatTimeDomainData(samples);
+      let sum = 0;
+      for (let k = 0; k < samples.length; k++) sum += samples[k] * samples[k];
+      const rms = Math.sqrt(sum / samples.length);
+      peak = Math.max(rms, peak * 0.998, 0.02);
+      target = rms / peak;
+    }
+    level += (target - level) * (target > level ? 0.25 : 0.06);
+  }
+
   function draw(t) {
     ctx.clearRect(0, 0, width, height);
     const mid = height / 2;
-    const amp = height * 0.32;
+    const amp = height * 0.32 * (1 + level * 0.35);
+    travel += Math.max(0, t - lastT) * (1.4 + level * 1.6);
+    lastT = t;
     const allOn = strands.every((s) => s.on);
 
     strands.forEach((s, i) => {
@@ -53,7 +77,7 @@
       for (let x = 0; x <= width; x += 3) {
         const u = x / width;
         const env = Math.sin(Math.PI * u); // senar yang terikat di kedua ujung
-        const harmony = Math.sin(u * Math.PI * 4 - t * 1.4);
+        const harmony = Math.sin(u * Math.PI * 4 - travel);
         let noise = 0;
         for (const p of s.partials) {
           noise += p.amp * Math.sin(u * Math.PI * p.freq + t * p.speed + p.phase);
@@ -71,8 +95,17 @@
     ctx.globalAlpha = 1;
   }
 
+  // Dengan "reduce motion", gelombang diam kecuali saat suara menyala (diklik pengunjung).
+  let looping = false;
   function loop(ms) {
+    readLevel();
     draw(ms / 1000);
+    if (!reduceMotion || level > 0.01) requestAnimationFrame(loop);
+    else { looping = false; draw(0); }
+  }
+  function startLoop() {
+    if (looping) return;
+    looping = true;
     requestAnimationFrame(loop);
   }
 
@@ -103,6 +136,11 @@
       master = audio.createGain();
       master.gain.value = 0.16;
       master.connect(audio.destination);
+
+      analyser = audio.createAnalyser();
+      analyser.fftSize = 1024;
+      samples = new Float32Array(analyser.fftSize);
+      master.connect(analyser);
 
       // Gema halus: impuls dari noise yang meluruh, dicampur dengan suara asli.
       const reverb = audio.createConvolver();
@@ -230,6 +268,7 @@
 
   function sound(i, on) {
     if (muted || !ensureAudio()) return;
+    if (reduceMotion) startLoop();
     if (strands.every((s) => s.on)) {
       startMusic();
       return;
@@ -248,7 +287,10 @@
     muted = !muted;
     muteBtn.setAttribute("aria-pressed", String(!muted));
     if (muted && audio) stopMusic();
-    if (!muted && strands.every((s) => s.on) && ensureAudio()) startMusic();
+    if (!muted && strands.every((s) => s.on) && ensureAudio()) {
+      startMusic();
+      if (reduceMotion) startLoop();
+    }
     try { localStorage.setItem("sonade-muted", muted ? "1" : "0"); } catch {}
   });
 
@@ -271,5 +313,5 @@
 
   resize();
   if (reduceMotion) draw(0);
-  else requestAnimationFrame(loop);
+  else startLoop();
 })();
