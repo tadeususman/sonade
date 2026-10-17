@@ -218,6 +218,7 @@ img { display: block; max-width: 100%; height: auto; }
 .philosophy__intro h2 { margin-bottom: 24px; }
 .philosophy__intro h2 em { font-style: normal; color: var(--peach); }
 .philosophy__intro > p { color: var(--ink-muted); max-width: 52ch; }
+.philosophy__intro > p strong { color: var(--ink); font-weight: 700; }
 
 .note-reveal {
   display: flex;
