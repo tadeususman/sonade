@@ -50,6 +50,10 @@
   let speed = 1.4; // kecepatan rambat, juga dihaluskan
   let lastT = 0;
   let dt = 1 / 60;
+  // Gelombang diam sampai tombol pertama ditekan; setelah itu geraknya menyala pelan-pelan.
+  let awake = false;
+  let motion = 0;
+  let clock = 0;
 
   // Pelunakan berbasis waktu (bukan per frame), jadi sama mulusnya di layar 60 maupun 144 Hz.
   const ease = (cur, target, tau) => cur + (target - cur) * (1 - Math.exp(-dt / tau));
@@ -70,12 +74,14 @@
     level = ease(level, follow, 0.18);
   }
 
-  function draw(t) {
+  function draw() {
     ctx.clearRect(0, 0, width, height);
     const mid = height / 2;
     const amp = height * 0.32 * (1 + level * 0.35);
     speed = ease(speed, 1.4 + level * 1.6, 0.3);
-    travel += dt * speed;
+    motion = ease(motion, awake ? 1 : 0, 0.6);
+    clock += dt * motion;
+    travel += dt * speed * motion;
     const allOn = strands.every((s) => s.on);
 
     strands.forEach((s, i) => {
@@ -91,7 +97,7 @@
         const harmony = Math.sin(u * Math.PI * 4 - travel);
         let noise = 0;
         for (const p of s.partials) {
-          noise += p.amp * Math.sin(u * Math.PI * p.freq + t * p.speed + p.phase);
+          noise += p.amp * Math.sin(u * Math.PI * p.freq + clock * p.speed + p.phase);
         }
         pts.push([px, mid + env * amp * (m * harmony * 0.7 + (1 - m) * noise * 1.6)]);
       }
@@ -119,7 +125,7 @@
     dt = Math.min(0.05, Math.max(0.001, t - lastT)); // batasi lonjakan setelah tab tersembunyi
     lastT = t;
     readLevel();
-    draw(t);
+    draw();
     requestAnimationFrame(loop);
   }
 
@@ -305,6 +311,7 @@
       const i = Number(key.dataset.strand);
       const s = strands[i];
       s.on = !s.on;
+      awake = true;
       key.setAttribute("aria-pressed", String(s.on));
       tuner.classList.add("is-touched");
       update();
