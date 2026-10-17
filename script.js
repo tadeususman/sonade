@@ -50,6 +50,11 @@
   let speed = 1.4; // kecepatan rambat, juga dihaluskan
   let lastT = 0;
   let dt = 1 / 60;
+  // Denyut ritme: setiap nada yang dijadwalkan mencatat satu denyut pada waktu bunyinya
+  // (jam audio), jadi gelombang berdenyut tepat bersama denting, bukan sekadar mengikuti kerasnya.
+  let pulses = [];
+  let beat = 0;
+  const addPulse = (at, strength, tau, music = false) => pulses.push({ at, strength, tau, music });
   // Gelombang diam sampai tombol pertama ditekan; setelah itu geraknya menyala pelan-pelan.
   let awake = false;
   let motion = 0;
@@ -72,16 +77,28 @@
     }
     follow = ease(follow, target, target > follow ? 0.08 : 0.4);
     level = ease(level, follow, 0.18);
+
+    // Nilai denyut dihitung langsung dari waktu: naik sekejap (~40 ms), lalu meluruh halus.
+    beat = 0;
+    if (audio) {
+      const now = audio.currentTime - (audio.outputLatency || audio.baseLatency || 0);
+      pulses = pulses.filter((p) => now - p.at < p.tau * 5);
+      for (const p of pulses) {
+        const age = now - p.at;
+        if (age > 0) beat += p.strength * (1 - Math.exp(-age / 0.04)) * Math.exp(-age / p.tau);
+      }
+      beat = Math.min(1.3, beat);
+    }
   }
 
   function draw() {
     ctx.clearRect(0, 0, width, height);
     const mid = height / 2;
-    const amp = height * 0.32 * (1 + level * 0.35);
-    speed = ease(speed, 1.4 + level * 1.6, 0.3);
+    const amp = height * 0.32 * (1 + level * 0.2 + beat * 0.25);
+    speed = ease(speed, 1.4 + level * 0.8, 0.3);
     motion = ease(motion, awake ? 1 : 0, 0.6);
     clock += dt * motion;
-    travel += dt * speed * motion;
+    travel += dt * (speed + beat * 3.5) * motion;
     const allOn = strands.every((s) => s.on);
 
     strands.forEach((s, i) => {
@@ -181,6 +198,7 @@
   // Nada lembut seperti bel: sinus dengan sedikit overtone dan peluruhan.
   function tone(freq, { at = 0, dur = 1.6, gain = 1, out = master } = {}) {
     const t0 = audio.currentTime + at;
+    addPulse(t0, Math.min(1, gain * 2.5), 0.4, out !== master);
     const env = audio.createGain();
     env.gain.setValueAtTime(0, t0);
     env.gain.linearRampToValueAtTime(gain, t0 + 0.015);
@@ -233,6 +251,7 @@
   function scheduleBar(n, when) {
     const at = when - audio.currentTime;
     const out = music.bus;
+    addPulse(when, 0.5, 0.9, true); // pergantian akor
     pad(PROGRESSION[n % PROGRESSION.length], { at, dur: BAR - 0.2, gain: 0.07, out });
     if (n === 0) {
       // Birama pertama: denting naik sebagai tanda "sudah selaras".
@@ -270,6 +289,7 @@
     if (!music) return;
     const { bus, timer } = music;
     music = null;
+    pulses = pulses.filter((p) => !p.music || p.at <= audio.currentTime);
     clearTimeout(timer);
     bus.gain.setValueAtTime(bus.gain.value, audio.currentTime);
     bus.gain.linearRampToValueAtTime(0, audio.currentTime + 1.2);
