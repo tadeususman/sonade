@@ -21,6 +21,8 @@
     color,
     on: false,
     mix: 0, // 0 = sumbang, 1 = selaras (dianimasikan)
+    motion: 0, // 0 = diam, 1 = bergerak; menyala hanya saat nadanya dinyalakan
+    clock: 0,  // waktu milik garis ini, berjalan hanya selama ia bergerak
     partials: Array.from({ length: 3 }, (_, j) => ({
       freq: 2 + i * 1.7 + j * 2.3 + Math.random() * 1.5,
       speed: (0.6 + Math.random() * 1.4) * (j % 2 ? -1 : 1),
@@ -46,8 +48,11 @@
   let level = 0;   // sudah dihaluskan dua tahap, dipakai untuk menggambar
   let follow = 0;  // tahap pertama: cepat naik, pelan turun
   let peak = 0.02;
-  let travel = 0;
   let speed = 1.4; // kecepatan rambat, juga dihaluskan
+  // Satu jam rambat untuk semua garis, supaya saat ketiganya menyala mereka menyatu
+  // jadi satu garis. Jam ini berjalan selama ada nada yang menyala.
+  let travel = 0;
+  let travelMotion = 0;
   let lastT = 0;
   let dt = 1 / 60;
   // Denyut ritme: setiap nada yang dijadwalkan mencatat satu denyut pada waktu bunyinya
@@ -55,10 +60,6 @@
   let pulses = [];
   let beat = 0;
   const addPulse = (at, strength, tau, music = false) => pulses.push({ at, strength, tau, music });
-  // Gelombang diam sampai tombol pertama ditekan; setelah itu geraknya menyala pelan-pelan.
-  let awake = false;
-  let motion = 0;
-  let clock = 0;
 
   // Pelunakan berbasis waktu (bukan per frame), jadi sama mulusnya di layar 60 maupun 144 Hz.
   const ease = (cur, target, tau) => cur + (target - cur) * (1 - Math.exp(-dt / tau));
@@ -94,15 +95,17 @@
   function draw() {
     ctx.clearRect(0, 0, width, height);
     const mid = height / 2;
-    const amp = height * 0.32 * (1 + level * 0.2 + beat * 0.25);
     speed = ease(speed, 1.4 + level * 0.8, 0.3);
-    motion = ease(motion, awake ? 1 : 0, 0.6);
-    clock += dt * motion;
-    travel += dt * (speed + beat * 3.5) * motion;
+    travelMotion = ease(travelMotion, strands.some((s) => s.on) ? 1 : 0, 0.6);
+    travel += dt * (speed + beat * 3.5) * travelMotion;
     const allOn = strands.every((s) => s.on);
 
     strands.forEach((s, i) => {
       s.mix = ease(s.mix, s.on ? 1 : 0, 0.28);
+      // Tiap garis hanya bergerak (dan ikut berdenyut) selama nadanya menyala.
+      s.motion = ease(s.motion, s.on ? 1 : 0, 0.6);
+      s.clock += dt * s.motion;
+      const amp = height * 0.32 * (1 + (level * 0.2 + beat * 0.25) * s.motion);
       const m = smooth(s.mix);
 
       // Titik tiap 4px, disambung kurva kuadrat lewat titik tengah supaya garis tidak bersudut.
@@ -114,7 +117,7 @@
         const harmony = Math.sin(u * Math.PI * 4 - travel);
         let noise = 0;
         for (const p of s.partials) {
-          noise += p.amp * Math.sin(u * Math.PI * p.freq + clock * p.speed + p.phase);
+          noise += p.amp * Math.sin(u * Math.PI * p.freq + s.clock * p.speed + p.phase);
         }
         pts.push([px, mid + env * amp * (m * harmony * 0.7 + (1 - m) * noise * 1.6)]);
       }
@@ -331,7 +334,6 @@
       const i = Number(key.dataset.strand);
       const s = strands[i];
       s.on = !s.on;
-      awake = true;
       key.setAttribute("aria-pressed", String(s.on));
       tuner.classList.add("is-touched");
       update();
