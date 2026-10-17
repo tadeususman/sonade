@@ -270,6 +270,11 @@ img { display: block; max-width: 100%; height: auto; }
   transform-origin: bottom;
 }
 .eq i:nth-child(2) { background: var(--peach); }
+.js .service.is-in .eq i {
+  animation: grow .8s cubic-bezier(.3,1.4,.5,1) backwards;
+  animation-delay: calc(var(--i, 0) * 90ms + 250ms);
+}
+@keyframes grow { from { transform: scaleY(0); } }
 .service:hover .eq i { animation: eq .9s ease-in-out infinite alternate; }
 .service:hover .eq i:nth-child(2) { animation-delay: -.3s; background: var(--indigo); }
 .service:hover .eq i:nth-child(3) { animation-delay: -.6s; }
@@ -463,7 +468,46 @@ img { display: block; max-width: 100%; height: auto; }
   .footer { justify-content: center; text-align: center; }
 }
 
+/* Animasi saat di-scroll. Kelas .js dipasang script.js, jadi tanpa JavaScript
+   semua konten tetap tampil. Jeda antar elemen (--i) diisi script.js. */
+.progress {
+  position: fixed;
+  inset: 0 0 auto 0;
+  z-index: 20;
+  height: 3px;
+  background: var(--peach);
+  transform: scaleX(0);
+  transform-origin: left;
+  pointer-events: none;
+}
+
+.js .reveal { opacity: 0; }
+.js .reveal.is-in {
+  opacity: 1;
+  animation: rise .75s cubic-bezier(.2,.7,.2,1) backwards;
+  animation-delay: calc(var(--i, 0) * 90ms);
+}
+@keyframes rise {
+  from { opacity: 0; transform: translate(var(--dx, 0), var(--dy, 28px)); }
+}
+.reveal--right { --dx: 36px; --dy: 0; }
+
+/* Paranada tergambar dari kiri, lalu not jatuh ke tempatnya satu per satu */
+.js .staff.is-in::before { animation: draw 1.4s cubic-bezier(.3,.6,.2,1) backwards; }
+@keyframes draw { from { clip-path: inset(0 100% 0 0); } }
+.js .step.is-in .note {
+  animation: drop .7s cubic-bezier(.3,1.5,.5,1) backwards;
+  animation-delay: calc(var(--i, 0) * 90ms + 300ms);
+}
+@keyframes drop {
+  from { opacity: 0; transform: translateY(-36px) rotate(-18deg) scale(.4); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
-  *, *::before, *::after { animation: none !important; transition: none !important; }
+  /* Gerak yang berulang terus dimatikan; animasi muncul saat scroll tetap jalan. */
+  .tuner:not(.is-touched) .key,
+  .note-reveal img,
+  .sonar__ring,
+  .service:hover .eq i { animation: none !important; }
 }

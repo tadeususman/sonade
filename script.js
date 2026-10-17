@@ -7,7 +7,6 @@
   const tuner = document.querySelector(".tuner");
   const keys = [...document.querySelectorAll(".key")];
   const ctx = canvas.getContext("2d");
-  const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
 
   const COLORS = ["#F4A985", "#F9CDB7", "#FFFFFF"];
   const MESSAGES = [
@@ -44,10 +43,17 @@
   // dan berjalan lebih cepat saat ada bunyi, lalu tenang lagi saat hening.
   let analyser = null;
   let samples = null;
-  let level = 0;
+  let level = 0;   // sudah dihaluskan dua tahap, dipakai untuk menggambar
+  let follow = 0;  // tahap pertama: cepat naik, pelan turun
   let peak = 0.02;
   let travel = 0;
+  let speed = 1.4; // kecepatan rambat, juga dihaluskan
   let lastT = 0;
+  let dt = 1 / 60;
+
+  // Pelunakan berbasis waktu (bukan per frame), jadi sama mulusnya di layar 60 maupun 144 Hz.
+  const ease = (cur, target, tau) => cur + (target - cur) * (1 - Math.exp(-dt / tau));
+  const smooth = (v) => v * v * (3 - 2 * v);
 
   function readLevel() {
     let target = 0;
@@ -56,37 +62,50 @@
       let sum = 0;
       for (let k = 0; k < samples.length; k++) sum += samples[k] * samples[k];
       const rms = Math.sqrt(sum / samples.length);
-      peak = Math.max(rms, peak * 0.998, 0.02);
-      target = rms / peak;
+      peak = Math.max(rms, peak * Math.pow(0.5, dt / 4), 0.02);
+      // Ambang kecil supaya ekor gema yang nyaris hening tidak membuat gelombang bergetar.
+      target = Math.min(1, Math.max(0, (rms / peak - 0.12) / 0.88));
     }
-    level += (target - level) * (target > level ? 0.25 : 0.06);
+    follow = ease(follow, target, target > follow ? 0.08 : 0.4);
+    level = ease(level, follow, 0.18);
   }
 
   function draw(t) {
     ctx.clearRect(0, 0, width, height);
     const mid = height / 2;
     const amp = height * 0.32 * (1 + level * 0.35);
-    travel += Math.max(0, t - lastT) * (1.4 + level * 1.6);
-    lastT = t;
+    speed = ease(speed, 1.4 + level * 1.6, 0.3);
+    travel += dt * speed;
     const allOn = strands.every((s) => s.on);
 
     strands.forEach((s, i) => {
-      s.mix += ((s.on ? 1 : 0) - s.mix) * 0.06;
+      s.mix = ease(s.mix, s.on ? 1 : 0, 0.28);
+      const m = smooth(s.mix);
 
-      ctx.beginPath();
-      for (let x = 0; x <= width; x += 3) {
-        const u = x / width;
+      // Titik tiap 4px, disambung kurva kuadrat lewat titik tengah supaya garis tidak bersudut.
+      const pts = [];
+      for (let x = 0; x <= width + 4; x += 4) {
+        const px = Math.min(x, width);
+        const u = px / width;
         const env = Math.sin(Math.PI * u); // senar yang terikat di kedua ujung
         const harmony = Math.sin(u * Math.PI * 4 - travel);
         let noise = 0;
         for (const p of s.partials) {
           noise += p.amp * Math.sin(u * Math.PI * p.freq + t * p.speed + p.phase);
         }
-        const y = mid + env * amp * (s.mix * harmony * 0.7 + (1 - s.mix) * noise * 1.6);
-        x === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        pts.push([px, mid + env * amp * (m * harmony * 0.7 + (1 - m) * noise * 1.6)]);
       }
+      ctx.beginPath();
+      ctx.moveTo(pts[0][0], pts[0][1]);
+      for (let k = 1; k < pts.length - 1; k++) {
+        const mx = (pts[k][0] + pts[k + 1][0]) / 2;
+        const my = (pts[k][1] + pts[k + 1][1]) / 2;
+        ctx.quadraticCurveTo(pts[k][0], pts[k][1], mx, my);
+      }
+      const last = pts[pts.length - 1];
+      ctx.lineTo(last[0], last[1]);
       ctx.strokeStyle = s.color;
-      ctx.globalAlpha = allOn ? 1 - i * 0.25 : 0.35 + s.mix * 0.5;
+      ctx.globalAlpha = allOn ? 1 - i * 0.25 : 0.35 + m * 0.5;
       ctx.lineWidth = allOn && i === 0 ? 3.5 : 2.5;
       ctx.lineCap = "round";
       ctx.lineJoin = "round";
@@ -95,27 +114,18 @@
     ctx.globalAlpha = 1;
   }
 
-  // Dengan "reduce motion", gelombang diam kecuali saat suara menyala (diklik pengunjung).
-  let looping = false;
   function loop(ms) {
+    const t = ms / 1000;
+    dt = Math.min(0.05, Math.max(0.001, t - lastT)); // batasi lonjakan setelah tab tersembunyi
+    lastT = t;
     readLevel();
-    draw(ms / 1000);
-    if (!reduceMotion || level > 0.01) requestAnimationFrame(loop);
-    else { looping = false; draw(0); }
-  }
-  function startLoop() {
-    if (looping) return;
-    looping = true;
+    draw(t);
     requestAnimationFrame(loop);
   }
 
   function update() {
     const count = strands.filter((s) => s.on).length;
     status.textContent = MESSAGES[count];
-    if (reduceMotion) {
-      strands.forEach((s) => (s.mix = s.on ? 1 : 0));
-      draw(0);
-    }
   }
 
   // Suara: tiap nada satu not (C, E, G). Ketiganya menyala = akor C mayor.
@@ -268,7 +278,6 @@
 
   function sound(i, on) {
     if (muted || !ensureAudio()) return;
-    if (reduceMotion) startLoop();
     if (strands.every((s) => s.on)) {
       startMusic();
       return;
@@ -287,10 +296,7 @@
     muted = !muted;
     muteBtn.setAttribute("aria-pressed", String(!muted));
     if (muted && audio) stopMusic();
-    if (!muted && strands.every((s) => s.on) && ensureAudio()) {
-      startMusic();
-      if (reduceMotion) startLoop();
-    }
+    if (!muted && strands.every((s) => s.on) && ensureAudio()) startMusic();
     try { localStorage.setItem("sonade-muted", muted ? "1" : "0"); } catch {}
   });
 
@@ -308,10 +314,54 @@
 
   window.addEventListener("resize", () => {
     resize();
-    if (reduceMotion) draw(0);
   });
 
   resize();
-  if (reduceMotion) draw(0);
-  else startLoop();
+  requestAnimationFrame(loop);
+})();
+
+// Animasi saat di-scroll: elemen muncul ketika masuk layar, dan garis tipis di atas
+// halaman menunjukkan seberapa jauh halaman sudah dibaca.
+(() => {
+  const bar = document.querySelector(".progress");
+  let ticking = false;
+  function paint() {
+    ticking = false;
+    const max = document.documentElement.scrollHeight - innerHeight;
+    bar.style.transform = `scaleX(${max > 0 ? Math.min(1, scrollY / max) : 0})`;
+  }
+  addEventListener("scroll", () => {
+    if (!ticking) { ticking = true; requestAnimationFrame(paint); }
+  }, { passive: true });
+  addEventListener("resize", paint);
+  paint();
+
+  if (!("IntersectionObserver" in window)) return;
+
+  const targets = [
+    ".philosophy__intro > *", ".pillar",
+    "#layanan .container > :not(.services)", ".service",
+    "#karya .container > :not(.works)", ".work",
+    "#proses .container > :not(.staff)", ".step",
+    ".contact > *",
+  ];
+  const els = document.querySelectorAll(targets.join(","));
+  const staff = document.querySelector(".staff");
+  document.documentElement.classList.add("js");
+  els.forEach((el) => el.classList.add("reveal"));
+  document.querySelectorAll(".pillar").forEach((el) => el.classList.add("reveal--right"));
+
+  // Elemen yang muncul bersamaan diberi jeda berurutan (--i).
+  const io = new IntersectionObserver((entries) => {
+    let n = 0;
+    entries.forEach((entry) => {
+      if (!entry.isIntersecting) return;
+      entry.target.style.setProperty("--i", n++);
+      entry.target.classList.add("is-in");
+      io.unobserve(entry.target);
+    });
+  }, { threshold: 0.15, rootMargin: "0px 0px -6% 0px" });
+
+  els.forEach((el) => io.observe(el));
+  io.observe(staff);
 })();
